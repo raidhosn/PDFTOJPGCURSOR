@@ -1,4 +1,4 @@
-# PDF to JPG Converter for USCIS (Client-side)
+# PDF to JPG Converter for USCIS (Client-side).
 
 Single-page web app that converts PDF documents to **USCIS-accepted JPG/JPEG** fully in the browser using **pdf.js** (privacy-friendly: no uploads).
 
