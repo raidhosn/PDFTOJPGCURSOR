@@ -349,7 +349,8 @@ function renderGrid() {
   const grid = document.querySelector("#grid");
   if (!grid) return;
 
-  if (state.mode !== "individual") {
+  // Hide grid when not in PDF mode or not in individual page mode
+  if (state.appMode !== "pdf" || state.mode !== "individual") {
     grid.innerHTML = "";
     return;
   }
@@ -454,12 +455,16 @@ function clearImageCompression() {
   state.imgFiles = [];
   renderImageCompressionList();
   renderActions();
+  updateStepUI();
 }
 
 function renderImageCompressionList() {
   const host = document.querySelector("#imgList");
   const summary = document.querySelector("#imgSummary");
   if (!host || !summary) return;
+  
+  // Update step indicators
+  updateStepUI();
 
   if (!state.imgFiles.length) {
     host.innerHTML = "";
@@ -697,29 +702,47 @@ function updateSizeUI() {
 }
 
 function updateStepUI() {
+  // PDF mode steps
   const s1 = document.querySelector("#step1");
   const s2 = document.querySelector("#step2");
   const s3 = document.querySelector("#step3");
   const s4 = document.querySelector("#step4");
-  if (!s1 || !s2 || !s3 || !s4) return;
+  if (s1 && s2 && s3 && s4) {
+    const uploaded = !!state.file && state.pageCount > 0;
+    const converted =
+      (state.mode === "individual" && state.pages.length > 0) || (state.mode === "combined" && !!state.combined);
 
-  const uploaded = !!state.file && state.pageCount > 0;
-  const converted =
-    (state.mode === "individual" && state.pages.length > 0) || (state.mode === "combined" && !!state.combined);
+    s1.className = `step ${uploaded ? "done" : "active"}`;
+    s2.className = `step ${uploaded ? "active" : ""} ${converted ? "done" : ""}`;
+    s3.className = `step ${uploaded && !converted ? "active" : ""} ${converted ? "done" : ""}`;
+    s4.className = `step ${converted ? "active" : ""} ${converted ? "done" : ""}`;
 
-  s1.className = `step ${uploaded ? "done" : "active"}`;
-  s2.className = `step ${uploaded ? "active" : ""} ${converted ? "done" : ""}`;
-  s3.className = `step ${uploaded && !converted ? "active" : ""} ${converted ? "done" : ""}`;
-  s4.className = `step ${converted ? "active" : ""} ${converted ? "done" : ""}`;
+    const pageCountEl = document.querySelector("#pageCountLabel");
+    if (pageCountEl) pageCountEl.textContent = uploaded ? `${state.pageCount}` : "—";
+  }
 
-  const pageCountEl = document.querySelector("#pageCountLabel");
-  if (pageCountEl) pageCountEl.textContent = uploaded ? `${state.pageCount}` : "—";
+  // Image mode steps
+  const is1 = document.querySelector("#imgStep1");
+  const is2 = document.querySelector("#imgStep2");
+  const is3 = document.querySelector("#imgStep3");
+  const is4 = document.querySelector("#imgStep4");
+  if (is1 && is2 && is3 && is4) {
+    const hasImages = state.imgFiles.length > 0;
+    const hasCompressed = state.imgFiles.some((x) => x.compressed?.blob);
+    const allPassed = hasCompressed && state.imgFiles.every((x) => x.compressed?.pass);
+
+    is1.className = `step ${hasImages ? "done" : "active"}`;
+    is2.className = `step ${hasImages ? "done" : ""}`;
+    is3.className = `step ${hasImages && !hasCompressed ? "active" : ""} ${hasCompressed ? "done" : ""}`;
+    is4.className = `step ${hasCompressed ? "active" : ""} ${allPassed ? "done" : ""}`;
+  }
 }
 
 function renderCombinedPreview() {
   const host = document.querySelector("#combinedPreviewHost");
   if (!host) return;
-  if (state.mode !== "combined" || !state.combined) {
+  // Hide when not in PDF mode or not in combined mode
+  if (state.appMode !== "pdf" || state.mode !== "combined" || !state.combined) {
     host.innerHTML = "";
     return;
   }
@@ -1142,19 +1165,19 @@ function mount() {
 
         <div id="imgSection" style="display:none;">
           <div class="steps" aria-label="Steps">
-            <div class="step active">
+            <div id="imgStep1" class="step active">
               <div class="k">Step 1</div>
               <div class="v">Upload Images</div>
             </div>
-            <div class="step">
+            <div id="imgStep2" class="step">
               <div class="k">Step 2</div>
               <div class="v">USCIS-safe settings</div>
             </div>
-            <div class="step">
+            <div id="imgStep3" class="step">
               <div class="k">Step 3</div>
               <div class="v">Compress & download</div>
             </div>
-            <div class="step">
+            <div id="imgStep4" class="step">
               <div class="k">Step 4</div>
               <div class="v">Verify ≤ 600 KB</div>
             </div>
@@ -1186,6 +1209,15 @@ function mount() {
                 Enable preset
               </label>
               <div class="hint mini">Preserves resolution. Encoder tuning is quality-only in browser; full encoder knobs are in CLI.</div>
+            </div>
+
+            <div class="control">
+              <label>
+                <span>Starting quality</span>
+                <span id="imgQualityLabel" style="font-variant-numeric: tabular-nums;">${Math.round(state.quality * 100)}%</span>
+              </label>
+              <input id="imgQualityRange" type="range" min="10" max="100" step="1" value="${Math.round(state.quality * 100)}" data-disable-when-busy />
+              <div class="hint mini">Initial quality before fit-under compression.</div>
             </div>
 
             <div class="control">
@@ -1251,6 +1283,8 @@ function mount() {
   const imgPickBtn = document.querySelector("#imgPickBtn");
   const imgInput = document.querySelector("#imgInput");
   const imgUscisPreset = document.querySelector("#imgUscisPreset");
+  const imgQualityRange = document.querySelector("#imgQualityRange");
+  const imgQualityLabel = document.querySelector("#imgQualityLabel");
   const imgTargetKB = document.querySelector("#imgTargetKB");
   const imgMinQuality = document.querySelector("#imgMinQuality");
   const imgCompressBtn = document.querySelector("#imgCompressBtn");
@@ -1287,6 +1321,9 @@ function mount() {
     pdfSection.style.display = state.appMode === "pdf" ? "" : "none";
     imgSection.style.display = state.appMode === "img" ? "" : "none";
     hideProgress();
+    // Clear cross-mode UI elements when switching
+    renderGrid();
+    renderCombinedPreview();
     renderActions();
   }
 
@@ -1354,6 +1391,9 @@ function mount() {
     const v = Number(qualityRange.value) / 100;
     state.quality = clamp(v, 0.1, 1.0);
     qualityLabel.textContent = `${Math.round(state.quality * 100)}%`;
+    // Sync with Image quality slider
+    imgQualityRange.value = String(Math.round(state.quality * 100));
+    imgQualityLabel.textContent = `${Math.round(state.quality * 100)}%`;
   });
 
   qualityRange.addEventListener("change", () => {
@@ -1467,6 +1507,20 @@ function mount() {
     }
     toast(state.imgUscisPreset ? "USCIS-safe preset enabled (≤ 600 KB)." : "Preset disabled.", "info");
   });
+
+  // Image quality slider - syncs with PDF quality
+  imgQualityRange.addEventListener("input", () => {
+    const v = Number(imgQualityRange.value) / 100;
+    state.quality = clamp(v, 0.1, 1.0);
+    imgQualityLabel.textContent = `${Math.round(state.quality * 100)}%`;
+    // Sync with PDF quality slider
+    qualityRange.value = String(Math.round(state.quality * 100));
+    qualityLabel.textContent = `${Math.round(state.quality * 100)}%`;
+  });
+  imgQualityRange.addEventListener("change", () => {
+    toast(`Quality set to ${Math.round(state.quality * 100)}%`, "info");
+  });
+
   imgTargetKB.addEventListener("change", () => {
     const v = Number(imgTargetKB.value);
     state.imgTargetKB = clamp(v, 50, 6000);
