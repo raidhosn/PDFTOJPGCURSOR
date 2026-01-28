@@ -1,0 +1,21 @@
+{
+  "name": "pdf-to-image-converter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "uscis:compress": "node tools/uscis-compress.mjs"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "^4.10.38",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
+
